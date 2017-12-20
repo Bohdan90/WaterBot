@@ -23,8 +23,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -140,14 +140,12 @@ public class CallBackHandler {
                     default:
                         sendReadReceipt(senderId);
                         sendTypingOn(senderId);
-                        sendSpringDoc(senderId, messageText);
+                      //  sendSpringDoc(senderId, messageText);
                         sendQuickReply(senderId);
                         sendTypingOff(senderId);
                 }
             } catch (MessengerApiException | MessengerIOException e) {
                 handleSendException(e);
-            } catch (IOException e) {
-                handleIOException(e);
             }
         };
     }

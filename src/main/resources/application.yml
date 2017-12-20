@@ -1,7 +1,7 @@
 messenger4j:
-  appSecret:
-  verifyToken :
-  pageAccessToken:
+  appSecret: 4b3543a861d201103cc12b3dd48f446b
+  verifyToken : sidhe2005
+  pageAccessToken: EAAVVh44bG8cBAJo4adqfLiyVyXl8KnlOWCpPZA7UBkhVJFdrta55ZAYZBfTmfsNmqBiiZAluejw3n7AjH0ZCnZA2NAs1xlCdI5ZALVACsjomIwOmmrQpV28SQG3UaVZAGGMcujHeNm6i7ruixVZBboYH76bBZCxH20ZCiUh6sXdA7rPZBZADmaa0ZBsJE9
 
 logging:
   level:
