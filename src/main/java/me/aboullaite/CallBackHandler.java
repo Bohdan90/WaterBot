@@ -20,11 +20,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -70,6 +73,7 @@ public class CallBackHandler {
                 .onMessageReadEvent(newMessageReadEventHandler())
                 .fallbackEventHandler(newFallbackEventHandler())
                 .build();
+
         this.sendClient = sendClient;
     }
 
@@ -97,11 +101,13 @@ public class CallBackHandler {
     /**
      * Callback endpoint responsible for processing the inbound messages and events.
      */
+
     @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity<Void> handleCallback(@RequestBody final String payload,
                                                @RequestHeader("X-Hub-Signature") final String signature) {
 
         logger.debug("Received Messenger Platform callback - payload: {} | signature: {}", payload, signature);
+
         try {
             this.receiveClient.processCallbackPayload(payload, signature);
             logger.debug("Processed callback payload successfully");
@@ -111,10 +117,17 @@ public class CallBackHandler {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
+    @Inject
+    private JdbcTemplate hsqlTemplate;
 
     private TextMessageEventHandler newTextMessageEventHandler() {
         return event -> {
             logger.debug("Received TextMessageEvent: {}", event);
+            hsqlTemplate.update("INSERT INTO EXAMPLE VALUES ('Privet','Medved')");
+      List<Map<String, Object>> lis = hsqlTemplate.queryForList("Select * from EXAMPLE");
+            for (int i = 0; i <lis.size() ; i++) {
+                System.out.println(lis.get(i));
+            }
 
             final String messageId = event.getMid();
             final String messageText = event.getText();

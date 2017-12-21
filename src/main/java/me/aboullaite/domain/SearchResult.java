@@ -16,6 +16,7 @@ public class SearchResult {
         this.link = link;
         this.subtitle = subtitle;
         this.summary = summary;
+
     }
 
     public String getTitle() {
