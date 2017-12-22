@@ -145,7 +145,7 @@ public class CallBackHandler {
                 if (!isOldUser) {
                     if (senderTempId == null) {
                         senderTempId = senderId;
-                        sendTextMessage(senderId, "Hello, first time I've seen you. What`s your name mate?");
+                        sendTextMessage(senderId, "Hello, I`m seeing you for the first time. What`s your name, mate?");
                     } else if ( senderTempId != null && clientName == null && userIgnorseButton) {
 
                             sendQuickReply(senderId, "So i will call you " + messageText);
@@ -166,10 +166,10 @@ public class CallBackHandler {
                         drinkCount = Float.valueOf(gettedDataList.get(0).get("WATER").toString());
                         senderTempId = senderId;
                         if (!userIgnorseButton){
-                            sendQuickReply(senderId, "Hello," + clientName + " do you change the amount of water consumed? Last time it was -" + drinkCount + " per day");
+                            sendQuickReply(senderId, "Hello," + clientName + ". Did you change the amount of water consumed? Last time you consumed -" + drinkCount + " per day");
                             userIgnorseButton = true;
                         }else {
-                            sendQuickReply(senderId,  "Dear, " + clientName + " just change one answer on this question: do you change the amount of water consumed?");
+                            sendQuickReply(senderId,  "Dear, " + clientName + ". Just choose the right answer: Have you changed the amount of water consumed?");
                         }
                     }else {
                         clientName = gettedDataList.get(0).get("NAME").toString();
@@ -240,11 +240,11 @@ public class CallBackHandler {
                     if (quickReplyPayload.equals(GOOD_ACTION)) {
                         userIgnorseButton = false;
                         clientName = clientTempName;
-                        sendTextMessage(senderId, "Nice to meet you mate! ");
+                        sendTextMessage(senderId, "Nice to meet you, mate! ");
                         sendGifMessage(senderId, "https://media1.tenor.com/images/888de7ec66dd5053c46d4dba5b415003/tenor.gif?itemid=3455563");
 
                         this.sendClient.sendSenderAction(senderId, SenderAction.TYPING_ON);
-                        sendTextMessage(senderId, "And how much you drink? ");
+                        sendTextMessage(senderId, "And how many litres of water do you drink  a day? ");
 
                     } else {
                         //userIgnorseButton = false;
@@ -252,12 +252,12 @@ public class CallBackHandler {
 
 
 
-                        sendTextMessage(senderId, "So give me your name!");
+                        sendTextMessage(senderId, "So tell me your name!");
                     }
                 }else if (isOldUser ) {
                     if (quickReplyPayload.equals(GOOD_ACTION)) {
                         this.sendClient.sendSenderAction(senderId, SenderAction.TYPING_ON);
-                        sendTextMessage(senderId, "And what your current water consume? ");
+                        sendTextMessage(senderId, "And what`s your current water consumption? ");
 
                         rewriteDataFlag = true;
 
@@ -282,11 +282,11 @@ public class CallBackHandler {
             try {
                 drinkCount = Float.valueOf(messageText);
                 if (drinkCount > 2 && drinkCount <7 ) {
-                    sendTextMessage(senderTempId, "You do all right "+ clientName+ ". Arevua");
+                    sendTextMessage(senderTempId, "You are doing well "+ clientName+ ". Au revoir");
                     sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
                     clearValues();
                 } else if (drinkCount >7) {
-                    sendTextMessage(senderTempId, "Try to drink a bit");
+                    sendTextMessage(senderTempId, "Try to drink less");
                     sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
                     clearValues();
                 }else {
