@@ -114,9 +114,10 @@ public class CallBackHandler {
     private String senderTempId = null;
     private String clientName = null;
    private Float  drinkCount = null;
-    private Float  drinkTempCount = null;
+    private String clientTempName = null;
    private boolean rewriteDataFlag = false;
     private boolean  isOldUser = false;
+    private boolean userIgnorseButton = true;
     @Inject
     private JdbcTemplate hsqlTemplate;
     private TextMessageEventHandler newTextMessageEventHandler() {
@@ -145,10 +146,14 @@ public class CallBackHandler {
                     if (senderTempId == null) {
                         senderTempId = senderId;
                         sendTextMessage(senderId, "Hello, first time I've seen you. What`s your name mate?");
-                    } else if ( senderTempId != null && clientName == null) {
-                        sendQuickReply(senderId, "So i will call you " + messageText);
-                        clientName = messageText;
-                    } else if ( senderTempId != null && clientName != null && drinkCount == null && rewriteDataFlag == false) {
+                    } else if ( senderTempId != null && clientName == null && userIgnorseButton) {
+
+                            sendQuickReply(senderId, "So i will call you " + messageText);
+                        clientTempName = messageText;
+                           userIgnorseButton = true;
+
+
+                    } else if ( senderTempId != null && clientName != null && drinkCount == null ) {
                         //sendReadReceipt(senderId);
                         //  sendSpringDoc(senderId, messageText);
 
@@ -160,7 +165,12 @@ public class CallBackHandler {
                         clientName = gettedDataList.get(0).get("NAME").toString();
                         drinkCount = Float.valueOf(gettedDataList.get(0).get("WATER").toString());
                         senderTempId = senderId;
-                        sendQuickReply(senderId, "Hello," + clientName + " do you change the number of water? Last time it was -" + drinkCount + " per day");
+                        if (!userIgnorseButton){
+                            sendQuickReply(senderId, "Hello," + clientName + " do you change the amount of water consumed? Last time it was -" + drinkCount + " per day");
+                            userIgnorseButton = true;
+                        }else {
+                            sendQuickReply(senderId,  "Dear, " + clientName + " just change one answer on this question: do you change the amount of water consumed?");
+                        }
                     }else {
                         clientName = gettedDataList.get(0).get("NAME").toString();
                         drinkCount = Float.valueOf(gettedDataList.get(0).get("WATER").toString());
@@ -197,7 +207,7 @@ public class CallBackHandler {
     private void sendQuickReply(String recipientId, String replyText) throws MessengerApiException, MessengerIOException {
         final List<QuickReply> quickReplies = QuickReply.newListBuilder()
 
-                .addTextQuickReply("Looks good", GOOD_ACTION).toList()
+                .addTextQuickReply("Yes", GOOD_ACTION).toList()
                 .addTextQuickReply("Nope!", NOT_GOOD_ACTION).toList()
                 .build();
 
@@ -228,7 +238,8 @@ public class CallBackHandler {
             try {
                 if (!isOldUser) {
                     if (quickReplyPayload.equals(GOOD_ACTION)) {
-
+                        userIgnorseButton = false;
+                        clientName = clientTempName;
                         sendTextMessage(senderId, "Nice to meet you mate! ");
                         sendGifMessage(senderId, "https://media1.tenor.com/images/888de7ec66dd5053c46d4dba5b415003/tenor.gif?itemid=3455563");
 
@@ -236,6 +247,7 @@ public class CallBackHandler {
                         sendTextMessage(senderId, "And how much you drink? ");
 
                     } else {
+                        //userIgnorseButton = false;
                         clientName = null;
 
 
@@ -269,11 +281,15 @@ public class CallBackHandler {
         SetDatesDao sd = new SetDatesDao();
             try {
                 drinkCount = Float.valueOf(messageText);
-                if (drinkCount > 2) {
+                if (drinkCount > 2 && drinkCount <7 ) {
                     sendTextMessage(senderTempId, "You do all right "+ clientName+ ". Arevua");
                     sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
                     clearValues();
-                } else {
+                } else if (drinkCount >7) {
+                    sendTextMessage(senderTempId, "Try to drink a bit");
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    clearValues();
+                }else {
                     sendTextMessage(senderTempId, "Try to drink more");
                     sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
                     clearValues();
