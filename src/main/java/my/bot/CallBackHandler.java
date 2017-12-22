@@ -1,4 +1,4 @@
-package me.aboullaite;
+package my.bot;
 
 import com.github.messenger4j.MessengerPlatform;
 import com.github.messenger4j.exceptions.MessengerApiException;
@@ -8,12 +8,8 @@ import com.github.messenger4j.receive.MessengerReceiveClient;
 import com.github.messenger4j.receive.events.AccountLinkingEvent;
 import com.github.messenger4j.receive.handlers.*;
 import com.github.messenger4j.send.*;
-import com.github.messenger4j.send.buttons.Button;
-import com.github.messenger4j.send.templates.GenericTemplate;
-import me.aboullaite.domain.SearchResult;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
+import my.bot.dao.GetResultsDao;
+import my.bot.dao.SetDatesDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,11 +20,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
-import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Created by aboullaite on 2017-02-26.
@@ -117,17 +111,20 @@ public class CallBackHandler {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
+    private String senderTempId = null;
+    private String clientName = null;
+   private Float  drinkCount = null;
+    private Float  drinkTempCount = null;
+   private boolean rewriteDataFlag = false;
+    private boolean  isOldUser = false;
     @Inject
     private JdbcTemplate hsqlTemplate;
-
     private TextMessageEventHandler newTextMessageEventHandler() {
         return event -> {
             logger.debug("Received TextMessageEvent: {}", event);
-            hsqlTemplate.update("INSERT INTO EXAMPLE VALUES ('Privet','Medved')");
-      List<Map<String, Object>> lis = hsqlTemplate.queryForList("Select * from EXAMPLE");
-            for (int i = 0; i <lis.size() ; i++) {
-                System.out.println(lis.get(i));
-            }
+            GetResultsDao gs = new GetResultsDao();
+
+
 
             final String messageId = event.getMid();
             final String messageText = event.getText();
@@ -138,89 +135,58 @@ public class CallBackHandler {
                     messageId, messageText, senderId, timestamp);
 
             try {
-                switch (messageText.toLowerCase()) {
+                        List<Map<String, Object>> gettedDataList = gs.getAllDates(senderId,hsqlTemplate);
 
+               if (gettedDataList!=null && gettedDataList.size()>0){
+                   isOldUser=true;
+               }
 
-                    case "yo":
-                        sendTextMessage(senderId, "Hello, What I can do for you ? Type the word you're looking for");
-                        break;
+                if (!isOldUser) {
+                    if (senderTempId == null) {
+                        senderTempId = senderId;
+                        sendTextMessage(senderId, "Hello, first time I've seen you. What`s your name mate?");
+                    } else if ( senderTempId != null && clientName == null) {
+                        sendQuickReply(senderId, "So i will call you " + messageText);
+                        clientName = messageText;
+                    } else if ( senderTempId != null && clientName != null && drinkCount == null && rewriteDataFlag == false) {
+                        //sendReadReceipt(senderId);
+                        //  sendSpringDoc(senderId, messageText);
 
-                    case "great":
-                        sendTextMessage(senderId, "You're welcome :) keep rocking");
-                        break;
+                        checkWaterCount(messageText);
+                        //  sendTypingOff(senderId);
+                    }
+                }else if (isOldUser){
+                    if (!rewriteDataFlag) {
+                        clientName = gettedDataList.get(0).get("NAME").toString();
+                        drinkCount = Float.valueOf(gettedDataList.get(0).get("WATER").toString());
+                        senderTempId = senderId;
+                        sendQuickReply(senderId, "Hello," + clientName + " do you change the number of water? Last time it was -" + drinkCount + " per day");
+                    }else {
+                        clientName = gettedDataList.get(0).get("NAME").toString();
+                        drinkCount = Float.valueOf(gettedDataList.get(0).get("WATER").toString());
+                        senderTempId = senderId;
+                        checkWaterCount(messageText);
+                    }
+                              //  sendTextMessage(senderId, "Hello," +clientName + " do you change the number of water? Last time it was -"+drinkCount + " per day");
 
+                        }
 
-                    default:
-                        sendReadReceipt(senderId);
-                        sendTypingOn(senderId);
-                      //  sendSpringDoc(senderId, messageText);
-                        sendQuickReply(senderId);
-                        sendTypingOff(senderId);
-                }
             } catch (MessengerApiException | MessengerIOException e) {
                 handleSendException(e);
             }
         };
     }
 
-    private void sendSpringDoc(String recipientId, String keyword) throws MessengerApiException, MessengerIOException, IOException {
 
-        Document doc = Jsoup.connect(("https://spring.io/search?q=").concat(keyword)).get();
-        String countResult = doc.select("div.search-results--count").first().ownText();
-        Elements searchResult = doc.select("section.search-result");
-        List<SearchResult> searchResults = searchResult.stream().map(element ->
-                        new SearchResult(element.select("a").first().ownText(),
-                element.select("a").first().absUrl("href"),
-                element.select("div.search-result--subtitle").first().ownText(),
-                element.select("div.search-result--summary").first().ownText())
-                ).limit(3).collect(Collectors.toList());
+    private void clearValues(){
+        senderTempId = null;
+        clientName = null;
+        drinkCount = null;
+        isOldUser = false;
 
-        final List<Button> firstLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(0).getLink()).toList()
-                .build();
-final List<Button> secondLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(1).getLink()).toList()
-                .build();
-final List<Button> thirdtLink = Button.newListBuilder()
-                .addUrlButton("Open Link", searchResults.get(2).getLink()).toList()
-                .build();
-final List<Button> searchLink = Button.newListBuilder()
-                .addUrlButton("Open Link", ("https://spring.io/search?q=").concat(keyword)).toList()
-                .build();
-
-
-
-        final GenericTemplate genericTemplate = GenericTemplate.newBuilder()
-                .addElements()
-                .addElement(searchResults.get(0).getTitle())
-                .subtitle(searchResults.get(0).getSubtitle())
-                .itemUrl(searchResults.get(0).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(firstLink)
-                .toList()
-                .addElement(searchResults.get(1).getTitle())
-                .subtitle(searchResults.get(1).getSubtitle())
-                .itemUrl(searchResults.get(1).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(secondLink)
-                .toList()
-                .addElement(searchResults.get(2).getTitle())
-                .subtitle(searchResults.get(2).getSubtitle())
-                .itemUrl(searchResults.get(2).getLink())
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(thirdtLink)
-                .toList()
-                .addElement("All results " + countResult)
-                .subtitle("Spring Search Result")
-                .itemUrl(("https://spring.io/search?q=").concat(keyword))
-                .imageUrl("https://upload.wikimedia.org/wikipedia/en/2/20/Pivotal_Java_Spring_Logo.png")
-                .buttons(searchLink)
-                .toList()
-                .done()
-                .build();
-
-        this.sendClient.sendTemplate(recipientId, genericTemplate);
+        rewriteDataFlag= false;
     }
+
 
     private void sendGifMessage(String recipientId, String gif) throws MessengerApiException, MessengerIOException {
         this.sendClient.sendImageAttachment(recipientId, gif);
@@ -228,18 +194,17 @@ final List<Button> searchLink = Button.newListBuilder()
 
 
 
-    private void sendQuickReply(String recipientId) throws MessengerApiException, MessengerIOException {
+    private void sendQuickReply(String recipientId, String replyText) throws MessengerApiException, MessengerIOException {
         final List<QuickReply> quickReplies = QuickReply.newListBuilder()
+
                 .addTextQuickReply("Looks good", GOOD_ACTION).toList()
                 .addTextQuickReply("Nope!", NOT_GOOD_ACTION).toList()
                 .build();
 
-        this.sendClient.sendTextMessage(recipientId, "Was this helpful?!", quickReplies);
+        this.sendClient.sendTextMessage(recipientId, replyText, quickReplies);
     }
 
-    private void sendReadReceipt(String recipientId) throws MessengerApiException, MessengerIOException {
-        this.sendClient.sendSenderAction(recipientId, SenderAction.MARK_SEEN);
-    }
+
 
     private void sendTypingOn(String recipientId) throws MessengerApiException, MessengerIOException {
         this.sendClient.sendSenderAction(recipientId, SenderAction.TYPING_ON);
@@ -260,21 +225,65 @@ final List<Button> searchLink = Button.newListBuilder()
             logger.info("Received quick reply for message '{}' with payload '{}'", messageId, quickReplyPayload);
 
 
-                try {
-                    if(quickReplyPayload.equals(GOOD_ACTION))
-                    sendGifMessage(senderId, "https://media.giphy.com/media/3oz8xPxTUeebQ8pL1e/giphy.gif");
-                    else
-                    sendGifMessage(senderId, "https://media.giphy.com/media/26ybx7nkZXtBkEYko/giphy.gif");
-                } catch (MessengerApiException e) {
-                    handleSendException(e);
-                } catch (MessengerIOException e) {
-                    handleIOException(e);
-                }
+            try {
+                if (!isOldUser) {
+                    if (quickReplyPayload.equals(GOOD_ACTION)) {
 
-            sendTextMessage(senderId, "Let's try another one :D!");
+                        sendTextMessage(senderId, "Nice to meet you mate! ");
+                        sendGifMessage(senderId, "https://media1.tenor.com/images/888de7ec66dd5053c46d4dba5b415003/tenor.gif?itemid=3455563");
+
+                        this.sendClient.sendSenderAction(senderId, SenderAction.TYPING_ON);
+                        sendTextMessage(senderId, "And how much you drink? ");
+
+                    } else {
+                        clientName = null;
+
+
+
+                        sendTextMessage(senderId, "So give me your name!");
+                    }
+                }else if (isOldUser ) {
+                    if (quickReplyPayload.equals(GOOD_ACTION)) {
+                        this.sendClient.sendSenderAction(senderId, SenderAction.TYPING_ON);
+                        sendTextMessage(senderId, "And what your current water consume? ");
+
+                        rewriteDataFlag = true;
+
+
+                    } else{
+
+
+
+                        sendTextMessage(senderId, "So carry on, bro!");
+                    }
+                }
+            }catch (MessengerApiException e) {
+                e.printStackTrace();
+            } catch (MessengerIOException e) {
+                e.printStackTrace();
+            }
         };
     }
 
+    private void checkWaterCount (String messageText){
+        SetDatesDao sd = new SetDatesDao();
+            try {
+                drinkCount = Float.valueOf(messageText);
+                if (drinkCount > 2) {
+                    sendTextMessage(senderTempId, "You do all right "+ clientName+ ". Arevua");
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    clearValues();
+                } else {
+                    sendTextMessage(senderTempId, "Try to drink more");
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    clearValues();
+                }
+
+            } catch (NumberFormatException nfe) {
+        logger.error(nfe.getMessage());
+        sendTextMessage(senderTempId, "No," + messageText + " just number of litres");
+    }
+    }
     private PostbackEventHandler newPostbackEventHandler() {
         return event -> {
             logger.debug("Received PostbackEvent: {}", event);
