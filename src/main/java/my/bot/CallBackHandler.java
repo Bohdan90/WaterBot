@@ -350,19 +350,22 @@ notFreq = 1;
 
             senderTempId = senderId;
 
-            sd.updateUserNotFreq(senderTempId,String.valueOf(notFreq),hsqlTemplate);
+
             switch (payload) {
                 case "ONCE_PAYLOAD":
                     sendTextMessage(senderId, "Ok i will send you notifications once per day");
                     notFreq = 1;
+                    sd.updateUserNotFreq(senderTempId,String.valueOf(notFreq),hsqlTemplate);
                     break;
                 case "TWICE_PAYLOAD":
                     sendTextMessage(senderId, "Ok i will send you notifications twice per day");
                     notFreq = 2;
+                    sd.updateUserNotFreq(senderTempId,String.valueOf(notFreq),hsqlTemplate);
                     break;
                 case "OFF_PAYLOAD":
                     sendTextMessage(senderId, "Ok i will shut off notifications");
                     notFreq = 0;
+                    sd.updateUserNotFreq(senderTempId,String.valueOf(notFreq),hsqlTemplate);
                     break;
 
             }
