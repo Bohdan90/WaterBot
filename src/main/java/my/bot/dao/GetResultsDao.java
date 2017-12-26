@@ -18,6 +18,14 @@ public class GetResultsDao {
         return list;
     }
 
+    public List<Map<String, Object>> getAllID( JdbcTemplate hsqlTemplate){
+
+        List<Map<String, Object>> list = hsqlTemplate.queryForList("Select ID from USERDATA ");
+
+        return list;
+    }
+
+
     public List<Map<String, Object>> getName(String userId, JdbcTemplate hsqlTemplate){
 
         List<Map<String, Object>> list = hsqlTemplate.queryForList("Select name from USERDATA where ID='" + userId+"'");
@@ -27,6 +35,12 @@ public class GetResultsDao {
     public List<Map<String, Object>> getWaterCount(String userId, JdbcTemplate hsqlTemplate){
 
         List<Map<String, Object>> list = hsqlTemplate.queryForList("Select water from USERDATA where ID='" + userId+"'");
+
+        return list;
+    }
+    public List<Map<String, Object>> getNotCount(String userId, JdbcTemplate hsqlTemplate){
+
+        List<Map<String, Object>> list = hsqlTemplate.queryForList("Select NOTIFICATIONS from USERDATA where ID='" + userId+"'");
 
         return list;
     }

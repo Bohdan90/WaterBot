@@ -17,9 +17,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +30,7 @@ import java.util.Map;
 /**
  * Created by aboullaite on 2017-02-26.
  */
-
+@EnableScheduling
 @RestController
 @RequestMapping("/callback")
 public class CallBackHandler {
@@ -70,7 +73,35 @@ public class CallBackHandler {
 
         this.sendClient = sendClient;
     }
+    private static final Logger log = LoggerFactory.getLogger(CallBackHandler.class);
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+    @Scheduled(fixedRate = 30000)
+    public void reportCurrentTime() throws InterruptedException {
+        String clientIDtmp;
+        String clientWaterCounttmp = null;
+        GetResultsDao grdao = new GetResultsDao();
+        List<Map<String, Object>> gettedDataList =  grdao.getAllID(hsqlTemplate);
 
+       // List<Map<String, Object>> getWater =  grdao.getWaterCount(clientIDtmp,hsqlTemplate);
+        for (int i = 0; i < gettedDataList.size(); i++) {
+            clientIDtmp = gettedDataList.get(i).get("ID").toString();
+            if (clientIDtmp!=null) {
+                List<Map<String, Object>> gettedWaterList = grdao.getWaterCount(clientIDtmp, hsqlTemplate);
+            clientWaterCounttmp = gettedWaterList.get(i).get("WATER").toString();
+                List<Map<String, Object>> getNotCount = grdao.getNotCount(clientIDtmp, hsqlTemplate);
+                if (Integer.valueOf( getNotCount.get(i).get("NOTIFICATIONS").toString()) != 0){
+                    for (int j = 0; j < Integer.valueOf( getNotCount.get(i).get("NOTIFICATIONS").toString()); j++) {
+
+                        if (clientWaterCounttmp!=null) {
+                            sendTextMessage(clientIDtmp, "Don`t forget to drink some water! Last time you drink " + clientWaterCounttmp + " per day");
+                        }
+                    }
+                }
+            }
+
+        }
+
+    }
     /**
      * Webhook verification endpoint.
      *
@@ -118,6 +149,7 @@ public class CallBackHandler {
    private boolean rewriteDataFlag = false;
     private boolean  isOldUser = false;
     private boolean userIgnorseButton = true;
+    private int notFreq = 1;
     @Inject
     private JdbcTemplate hsqlTemplate;
     private TextMessageEventHandler newTextMessageEventHandler() {
@@ -193,7 +225,7 @@ public class CallBackHandler {
         clientName = null;
         drinkCount = null;
         isOldUser = false;
-
+notFreq = 1;
         rewriteDataFlag= false;
     }
 
@@ -283,15 +315,15 @@ public class CallBackHandler {
                 drinkCount = Float.valueOf(messageText);
                 if (drinkCount > 2 && drinkCount <7 ) {
                     sendTextMessage(senderTempId, "You are doing well "+ clientName+ ". Au revoir");
-                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(),String.valueOf(notFreq), hsqlTemplate);
                     clearValues();
                 } else if (drinkCount >7) {
                     sendTextMessage(senderTempId, "Try to drink less");
-                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(),String.valueOf(notFreq), hsqlTemplate);
                     clearValues();
                 }else {
                     sendTextMessage(senderTempId, "Try to drink more");
-                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(), hsqlTemplate);
+                    sd.setAllDates(senderTempId, clientName, drinkCount.toString(),String.valueOf(notFreq), hsqlTemplate);
                     clearValues();
                 }
 
@@ -303,7 +335,7 @@ public class CallBackHandler {
     private PostbackEventHandler newPostbackEventHandler() {
         return event -> {
             logger.debug("Received PostbackEvent: {}", event);
-
+            SetDatesDao sd = new SetDatesDao();
             final String senderId = event.getSender().getId();
             final String recipientId = event.getRecipient().getId();
             final String payload = event.getPayload();
@@ -312,7 +344,29 @@ public class CallBackHandler {
             logger.info("Received postback for user '{}' and page '{}' with payload '{}' at '{}'",
                     senderId, recipientId, payload, timestamp);
 
-            sendTextMessage(senderId, "Postback called");
+            if(senderTempId==null){
+                sendTextMessage(senderId, "First lets meet!");
+            }
+
+            senderTempId = senderId;
+
+            sd.updateUserNotFreq(senderTempId,String.valueOf(notFreq),hsqlTemplate);
+            switch (payload) {
+                case "ONCE_PAYLOAD":
+                    sendTextMessage(senderId, "Ok i will send you notifications once per day");
+                    notFreq = 1;
+                    break;
+                case "TWICE_PAYLOAD":
+                    sendTextMessage(senderId, "Ok i will send you notifications twice per day");
+                    notFreq = 2;
+                    break;
+                case "OFF_PAYLOAD":
+                    sendTextMessage(senderId, "Ok i will shut off notifications");
+                    notFreq = 0;
+                    break;
+
+            }
+
         };
     }
 
